@@ -16,56 +16,68 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory
     @Override
     public void registerExtenderCallbacks(IBurpExtenderCallbacks callbacks)
     {
-        callbacks.setExtensionName("Linux/Windows LF Fixer");
+        callbacks.setExtensionName("Copy to Windows");
         callbacks.registerContextMenuFactory(this);
     }
 
     private void click()
     {
+        // Get HTTP Requests/Responses selected by the user
+        // We only want to do something with one message selected, so just exit if there are multiple
         IHttpRequestResponse messages[] = inv.getSelectedMessages();
+        if (messages.length > 1)
+            return;
+
+        IHttpRequestResponse message = messages[0];
+
+        // Get the context the user was in when they opened the menu
         final byte context = inv.getInvocationContext();
-        for (IHttpRequestResponse message : messages)
+
+
+        // Find the beginning and end of selected text (if there is any)
+        int bounds[] = inv.getSelectionBounds();
+
+        // If bounds is null, the button wasn't clicked in an HTTP Request/Response editor or viewer
+        if (bounds == null)
+            return;
+
+        String str = "";
+        String modifiedString = "";
+
+        // If the user has text selected
+        if (bounds[0] != bounds[1])
         {
-            String str = "";
-            String modifiedString = "";
-            int bounds[] = inv.getSelectionBounds();
-            if (bounds == null)
-                return;
+            // We're in a request
+            if (context == 0 || context == 2)
+                str = new String(Arrays.copyOfRange(message.getRequest(), bounds[0], bounds[1]));
 
-            if (bounds[0] != bounds[1])
-            {
-                if (context == 0 || context == 2)
-                    str = new String(Arrays.copyOfRange(message.getRequest(), bounds[0], bounds[1]));
-
-                if (context == 1 || context == 3)
-                    str = new String(Arrays.copyOfRange(message.getResponse(), bounds[0], bounds[1]));
-            }
-
-            else
-            {
-                if (context == 0 || context == 2)
-                    str = new String(message.getRequest());
-
-                if (context == 1 || context == 3)
-                    str = new String(message.getResponse());
-            }
-
-            for (int i = 0; i < str.length(); i++)
-            {
-                if (str.charAt(i) == '\r')
-                {
-                    if (str.charAt(i+1) == '\n')
-                    {
-                        continue;
-                    }
-                }
-                modifiedString += str.charAt(i);
-            }
-
-            StringSelection stringSelection = new StringSelection(modifiedString);
-            Clipboard clpbrd = Toolkit.getDefaultToolkit().getSystemClipboard();
-            clpbrd.setContents(stringSelection, null);
+            // We're in a response
+            if (context == 1 || context == 3)
+                str = new String(Arrays.copyOfRange(message.getResponse(), bounds[0], bounds[1]));
         }
+
+        else // No text selected, just grab the whole request or response
+        {
+            if (context == 0 || context == 2)
+                str = new String(message.getRequest());
+
+            if (context == 1 || context == 3)
+                str = new String(message.getResponse());
+        }
+
+        for (int i = 0; i < str.length(); i++)
+        {
+            // Ignore the '\r' in an "\r\n" sequence
+            if (str.charAt(i) == '\r' && str.charAt(i+1) == '\n')
+                continue;
+            modifiedString += str.charAt(i);
+        }
+
+        // Copy fixed text to clipboard
+        StringSelection stringSelection = new StringSelection(modifiedString);
+        Clipboard clpbrd = Toolkit.getDefaultToolkit().getSystemClipboard();
+        clpbrd.setContents(stringSelection, null);
+
     }
 
     @Override
