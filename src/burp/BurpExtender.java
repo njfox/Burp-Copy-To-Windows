@@ -11,17 +11,12 @@ import java.awt.Toolkit;
 
 public class BurpExtender implements IBurpExtender, IContextMenuFactory
 {
-    private IExtensionHelpers helpers;
-    private IBurpExtenderCallbacks cb;
     private IContextMenuInvocation inv;
 
     @Override
     public void registerExtenderCallbacks(IBurpExtenderCallbacks callbacks)
     {
-        cb = callbacks;
-        helpers = cb.getHelpers();
         callbacks.setExtensionName("Linux/Windows LF Fixer");
-
         callbacks.registerContextMenuFactory(this);
     }
 
